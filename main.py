@@ -2,13 +2,13 @@ import pyodbc
 import pandas as pd
 
 # from typing import Annotated
-from functools import lru_cache
+# from functools import lru_cache
 from fastapi import Depends, FastAPI, HTTPException
 from contextlib import contextmanager
 
 from config import Settings
 
-@lru_cache
+# @lru_cache
 def get_settings():
     return Settings()
 
@@ -21,16 +21,14 @@ def get_db_connection():
     # Datos para la conexion a la DB
     conn_data = get_settings()
     conn_str = (
-        f"DRIVER={conn_data.DRIVER};"
+        "DRIVER={" + conn_data.DRIVER + "};"
         f"DSN={conn_data.DSN};"
         f"HOST={conn_data.HOST};"
         f"DB={conn_data.DB};"
         f"UID={conn_data.UID};"
-        f"PWD={conn_data.PWD};"
-        f"PORT={int(conn_data.PORT)}"
+        f"PWD={conn_data.PWD2};"
+        f"PORT={conn_data.PORT};"
     )
-
-    print(conn_str)
 
     conn = None
     try:

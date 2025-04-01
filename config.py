@@ -8,5 +8,5 @@ class Settings(BaseSettings):
     HOST: str
     DB: str
     UID: str
-    PWD: str
+    PWD2: str
     PORT: str
