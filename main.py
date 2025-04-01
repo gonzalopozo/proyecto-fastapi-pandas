@@ -6,16 +6,6 @@ from functools import lru_cache
 from fastapi import Depends, FastAPI, HTTPException
 from contextlib import contextmanager
 
-# Datos para la conexion a la DB
-conn_str = (
-    "DRIVER=;"
-    "DSN=;"
-    "HOST=;"
-    "DB=;"
-    "UID=;"
-    "PWD=;"
-    "PORT="
-)
 from config import Settings
 
 @lru_cache
@@ -58,7 +48,7 @@ def test_api():
         with get_db_connection() as conn:
             query = "SELECT nom_fis, fec_fac, fvt_ppg FROM pub.gmtesoc"
             df = pd.read_sql_query(query, conn)  # Datos obtenidos se devuelven como un objeto de tipo DataFrame
-            df = df.head(100)  # Limite de 100 filas para probar la API
+            df = df.head(10)  # Limite de 10 filas para probar la API
             
             return {"message": "Connected via pyodbc", "results": df.to_dict(orient="records")}
     except Exception as e:
