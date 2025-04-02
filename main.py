@@ -1,36 +1,23 @@
 import pyodbc
 import pandas as pd
 
+from enum import Enum
+from typing import Optional
+
 # from typing import Annotated
 from functools import lru_cache
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from contextlib import contextmanager
 
 from config import Settings
 
 from datetime import date
 
-tags_metadata = [
-    # {
-    #     "name": "Describir tabla",
-    #     "description": "Se obtienen las **columnas** de la tablas indicada",
-    # },
-    # {
-    #     "name": "Albaranes por fecha completa",
-    #     "description": "Se obtienen los albarenes de ese día usando un **unico parametro**, que es la fecha entera de ese día con el formato **YYYYMMDD** sin espacios",
-    # },
-    {
-        "name": "Albaranes por día, mes y año",
-        "description": "Se obtienen los albarenes de ese día usando **tres parametros diferentes**: el día, el mes y el año",
-    },
-]
-
-app = FastAPI(openapi_tags=tags_metadata)
+app = FastAPI()
 
 @lru_cache
 def get_settings():
     return Settings()
-
 
 @contextmanager
 def get_db_connection():
@@ -58,51 +45,78 @@ def get_db_connection():
         if conn:
             conn.close()
 
-@app.get("/test")
-def test_api():
-    try:
-        with get_db_connection() as conn:
-            query = "SELECT nom_fis, fec_fac, fvt_ppg FROM pub.gmtesoc"
-            df = pd.read_sql_query(query, conn)  # Datos obtenidos se devuelven como un objeto de tipo DataFrame
-            df = df.head(10)  # Limite de 10 filas para probar la API
-            
-            return {"message": "Connected via pyodbc", "results": df.to_dict(orient="records")}
-    except Exception as e:
-        raise HTTPException(status_code = 500, detail = str(e))
+class DeliveryNoteTypeCustomer(str, Enum):
+    invoice = "Factura"
+    payment = "Abono"
 
-@app.get("/api/albaranes/cabeceras")
-def get_cabeceras_albaranes():
+@app.get(
+    "/api/albaranes/clientes/cabeceras",
+    summary="Devuelve todas las cabeceras de los albaranes de los clientes",
+    description="""Cada cabecera de albarán incluye los siguientes campos:  
+- `cod_cli`: código del cliente.  
+- `doc_alb`: indicador del tipo de documento; puede ser `"F"` para factura o `"A"` para abono.  
+- `fec_alb`: fecha del albarán.  
+- `raz_cli`: nombre del cliente.  
+- `tot_alb`: importe del albarán; será un valor negativo si es un abono.
+
+Además, se puede aplicar un **filtro por el tipo de albarán** mediante el parámetro query **opcional**:  
+- `deliveryNoteType`: define el tipo de albarán, permitiendo filtrar exclusivamente por `"Factura"` o `"Abono"` (internamente representados como `"F"` y `"A"` respectivamente).""",
+    tags=["Albaranes de clientes"]
+)
+def get_cabeceras_albaranes(deliveryNoteType: Optional[DeliveryNoteTypeCustomer] = Query(None, description="**Selecciona un tipo de albarán**")):
     try:
         with get_db_connection() as conn:
             query = "SELECT cod_cli, doc_alb, fec_alb, raz_cli, tot_alb FROM pub.gvalcab"
-            df = pd.read_sql_query(query, conn)
-            df = df.tail(100)
+
+            if deliveryNoteType:
+                query += " WHERE doc_alb = ?"
+
+                match deliveryNoteType:
+                    case "Factura":
+                        deliveryNoteType = "F"
+                    
+                    case "Abono":
+                        deliveryNoteType = "A"
+                    
+                    case _:
+                        raise HTTPException(status_code=400, detail="Invalid delivery note type")
+                
+                df = pd.read_sql_query(query, conn, params=(deliveryNoteType,))
+            else: 
+                df = pd.read_sql_query(query, conn)
+
             df.loc[df['doc_alb'] == 'A', 'tot_alb'] *= -1
 
-            return {"status": "success", "message": "Request processed successfully",  "results": df.to_dict(orient="records")}
+            return {
+                "status": "success", 
+                "message": "Request processed successfully",  
+                "results": df.to_dict(orient="records")
+            }
     except Exception as e:
         raise HTTPException(status_code = 500, detail = str(e))
 
-# @app.get("/api/albaranes/cabeceras/{day}", tags=["Albaranes por fecha completa"])
-# def get_cabeceras_albaranes(day: str):
-#     try:
-#         with get_db_connection() as conn:
+@app.get(
+    "/api/albaranes/clientes/cabeceras/{year}/{month}/{day}",
+    summary="Devuelve todas las cabeceras de los albaranes de los clientes de un día especifico",
+    description="""Para obtener los datos, se deben proporcionar los siguientes parámetros en la URL:  
+- `year`: número del año (ejemplo: 2024).  
+- `month`: número del mes (ejemplo: `01` para enero, `12` para diciembre).  
+- `day`: número del día (ejemplo: `01` para el primero del mes, `31` para el último día de un mes de 31 días).  
 
-#             processed_date = date(int(day[:4]), int(day[4:6]), int(day[6:8]))
+**Importante:** para los meses y días con un valor menor a **10**, se debe añadir un **0** antes del número.  
 
-#             # query = f"SELECT cod_cli, doc_alb, fec_alb, raz_cli, tot_alb FROM pub.gvalcab WHERE fec_alb = {processed_date.isoformat()}"
-#             query = f"SELECT cod_cli, doc_alb, fec_alb, raz_cli, tot_alb FROM pub.gvalcab WHERE fec_alb = '{processed_date.isoformat()}'"
+Cada cabecera de albarán incluye los siguientes campos:  
+- `cod_cli`: código del cliente.  
+- `doc_alb`: indicador del tipo de documento; puede ser `"F"` para factura o `"A"` para abono.  
+- `fec_alb`: fecha del albarán.  
+- `raz_cli`: nombre del cliente.  
+- `tot_alb`: importe del albarán; será un valor negativo si es un abono.
 
-#             print(query)
-#             df = pd.read_sql_query(query, conn)
-#             df.loc[df['doc_alb'] == 'A', 'tot_alb'] *= -1
-
-#             return {"status": "success", "message": "Request processed successfully",  "results": df.to_dict(orient="records")}
-#     except Exception as e:
-#         raise HTTPException(status_code = 500, detail = str(e))
-
-@app.get("/api/albaranes/cabeceras/{year}/{month}/{day}", tags=["Albaranes por día, mes y año"])
-def get_cabeceras_albaranes(year: str, month: str, day: str):
+Además, se puede aplicar un **filtro por el tipo de albarán** mediante el parámetro query **opcional**:  
+- `deliveryNoteType`: define el tipo de albarán, permitiendo filtrar exclusivamente por `"Factura"` o `"Abono"` (internamente representados como `"F"` y `"A"` respectivamente).""",
+    tags=["Albaranes de clientes"]
+)
+def get_cabeceras_albaranes_clientes(year: str, month: str, day: str, deliveryNoteType: Optional[DeliveryNoteTypeCustomer] = Query(None, description="**Selecciona un tipo de albarán**")):
     try:
         with get_db_connection() as conn:
 
@@ -110,20 +124,105 @@ def get_cabeceras_albaranes(year: str, month: str, day: str):
 
             query = "SELECT cod_cli, doc_alb, fec_alb, raz_cli, tot_alb FROM pub.gvalcab WHERE fec_alb = TO_DATE(?, 'YYYY-MM-DD')"
 
-            df = pd.read_sql_query(query, conn, params=(processed_date.isoformat(),))
+            if deliveryNoteType:
+                query += " AND doc_alb = ?"
+
+                match deliveryNoteType:
+                    case "Factura":
+                        deliveryNoteType = "F"
+                    
+                    case "Abono":
+                        deliveryNoteType = "A"
+                    
+                    case _:
+                        raise HTTPException(status_code=400, detail="Invalid delivery note type")
+
+                df = pd.read_sql_query(query, conn, params=(processed_date.isoformat(), deliveryNoteType))
+            else:
+                df = pd.read_sql_query(query, conn, params=(processed_date.isoformat(),))
+            
             df.loc[df['doc_alb'] == 'A', 'tot_alb'] *= -1
 
-            return {"status": "success", "message": "Request processed successfully",  "results": df.to_dict(orient="records")}
+            return {
+                "status": "success",
+                "message": "Request processed successfully",  
+                "results": df.to_dict(orient="records")
+            }
     except Exception as e:
         raise HTTPException(status_code = 500, detail = str(e))
 
-@app.get("/test/gvallin")
-def get_algo():
+class DeliveryNoteTypeSupplier(str, Enum):
+    charge = "Cargo"
+    payment = "Abono"
+
+class DeliveryNotePaymentMethodSupplier(str, Enum):
+    credit = "Crédito"
+    cash = "Contado"
+
+@app.get(
+            "/api/albaranes/proveedores/cabeceras/",
+            summary="Devuelve todas las cabeceras de los albaranes de los proveedores",
+            description="""Cada cabecera de albarán de proveedor incluye los siguientes campos:
+- `cod_pro`: código del proveedor.
+- `fec_alc`: fecha del albarán.
+- `num_alc`: número del albarán.
+- `car_alc`: indicador del tipo de albarán; `true` representa un cargo, mientras que `false` representa un abono.
+- `nvt_fpg`: forma de pago; `1` indica que se pagó a crédito y `0` que se pagó al contado.
+- `bru_alc`: importe del albarán; se mostrará como negativo si se trata de un abono.
+
+Además, se pueden aplicar los siguientes filtros **opcionales** mediante parámetros de consulta (**query params**):
+- `deliveryNoteType`: permite filtrar exclusivamente por `"Cargo"` o `"Abono"` (internamente representados como `true` y `false` respectivamente).
+- `deliveryNotePaymentMethod`: permite filtrar exclusivamente por `"Crédito"` o `"Contado"` (internamente representados como `"1"` y `"0"` respectivamente).""",
+            tags=["Albaranes de proveedores"]
+        )
+def get_cabeceras_albaranes_proveedores(deliveryNoteType: Optional[DeliveryNoteTypeSupplier] = Query(None, description="**Selecciona un tipo de albarán**"), deliveryNotePaymentMethod: Optional[DeliveryNotePaymentMethodSupplier] = Query(None, description="**Selecciona un método de pago**")):
     try:
         with get_db_connection() as conn:
-            query = "SELECT TOP 5 * FROM pub.gvallin"
 
-            df = pd.read_sql_query(query, conn)
-            return {"status": "success", "message": "Request processed successfully",  "results": df.to_dict(orient="records")}
+            query = "SELECT cod_pro, fec_alc, num_alc, car_alc, nvt_fpg, bru_alc FROM pub.gcpacab"
+
+            conditions = []
+            params = []
+            
+            if deliveryNoteType:
+                match deliveryNoteType:
+                    case "Cargo":
+                        conditions.append("car_alc = ?")
+                        params.append(True)
+
+                    case "Abono":
+                        conditions.append("car_alc = ?")
+                        params.append(False)
+
+                    case _:
+                        raise HTTPException(status_code=400, detail="Invalid delivery note type")
+            
+            if deliveryNotePaymentMethod:
+                match deliveryNotePaymentMethod:
+                    case "Crédito":
+                        conditions.append("nvt_fpg = ?")
+                        params.append(1)
+
+                    case "Contado":
+                        conditions.append("nvt_fpg = ?")
+                        params.append(0)
+
+                    case _:
+                        raise HTTPException(status_code=400, detail="Invalid payment method")
+            
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+            
+            df = pd.read_sql_query(query, conn, params=tuple(params))
+
+            df.loc[~df['car_alc'], 'bru_alc'] *= -1
+
+            df = df.tail(100)
+
+            return {
+                "status": "success",
+                "message": "Request processed successfully",
+                "results": df.to_dict(orient="records")
+            }
     except Exception as e:
         raise HTTPException(status_code = 500, detail = str(e))
