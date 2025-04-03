@@ -1,8 +1,9 @@
 # Proyecto FastAPI Pandas
 
-[![Python](https://img.shields.io/badge/Python-3.7%2B-FFD43B?style=social&logo=python&logoColor=306998)](https://www.python.org/)  
-[![FastAPI](https://img.shields.io/badge/FastAPI-%E2%9C%85-22bfda?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)  
-[![Pandas](https://img.shields.io/badge/Pandas-%E2%9C%85-150458?style=flat&logo=pandas&logoColor=white)](https://pandas.pydata.org/)
+[![Python](https://img.shields.io/badge/Python-3.7%2B-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005F56?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Pandas](https://img.shields.io/badge/Pandas-150458?style=flat&logo=pandas&logoColor=white)](https://pandas.pydata.org/)
+
 
 
 <details>
