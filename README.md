@@ -99,7 +99,7 @@ proyecto-fastapi-pandas/
 
 ## 🔮 Futuras Mejoras
 
-- **[Streamlit Frontend](https://github.com/usuario/future-streamlit-repo):** se planea desarrollar una interfaz visual con Streamlit para mostrar gráficos y tablas de forma interactiva.
+- **[Streamlit Frontend](https://github.com/gonzalopozo/proyecto-streamlit-api):** se planea desarrollar una interfaz visual con Streamlit para mostrar gráficos y tablas de forma interactiva.
 - **Ampliación de Endpoints de Datos:** incorporación de funcionalidades analíticas más avanzadas.
 
 ---
@@ -198,7 +198,7 @@ proyecto-fastapi-pandas/
 
 ## 🔮 Future Developments
 
-- **[Streamlit Frontend](https://github.com/usuario/future-streamlit-repo):** a dedicated visualization interface using Streamlit is planned to display interactive graphs and charts.
+- **[Streamlit Frontend](https://github.com/gonzalopozo/proyecto-streamlit-api):** a dedicated visualization interface using Streamlit is planned to display interactive graphs and charts.
 - **Enhanced Data Endpoints:** expansion of the API with more sophisticated data analytics features.
 
 ## 🙏 Acknowledgments
